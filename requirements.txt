@@ -1,0 +1,11 @@
+fastapi==0.146.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+aiogram==3.31.0
+openai==3.35.1
+sqlalchemy[asyncio]==2.1.5
+aiosqlite==0.22.1
+pydantic-settings==2.16.0
+loguru==0.7.3
+numpy==2.5.4
+pypdf==6.21.1
