@@ -11,7 +11,7 @@ from app.llm import chat, embed
 SYSTEM_PROMPT = """You are a helpful assistant that answers questions using ONLY the numbered context blocks provided.
 - Reply in the same language as the question, in plain text without Markdown formatting.
 - Cite the blocks you used inline, like [1] or [2].
-- If the context does not contain the answer, say you don't know. Never make things up."""
+- If the context does not contain the answer, politely say you couldn't find that information, without citing anything or mentioning "context" or "blocks". Never make things up."""
 
 
 @dataclass

@@ -1,4 +1,5 @@
 import html
+import re
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -36,8 +37,9 @@ def is_rate_limited(user_id: int) -> bool:
     return False
 
 
-def format_sources(sources: list[Source]) -> str:
-    labels = list(dict.fromkeys(s.label for s in sources))
+def format_sources(reply: str, sources: list[Source]) -> str:
+    cited = {int(n) for n in re.findall(r"\[(\d+)\]", reply)}
+    labels = list(dict.fromkeys(s.label for i, s in enumerate(sources, 1) if i in cited))
     # <code> keeps Telegram from auto-linking names like "faq.md" as URLs.
     return f"\n\n📄 Sources: {', '.join(f'<code>{html.escape(l)}</code>' for l in labels)}" if labels else ""
 
@@ -112,4 +114,4 @@ async def on_question(message: Message, bot: Bot) -> None:
     )
     # Truncate before escaping so the cut can never split an HTML entity or tag.
     body = html.escape(reply[: TELEGRAM_MESSAGE_LIMIT - 500])
-    await message.answer(body + format_sources(sources), parse_mode="HTML")
+    await message.answer(body + format_sources(reply, sources), parse_mode="HTML")
