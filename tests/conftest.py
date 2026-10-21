@@ -33,8 +33,10 @@ async def fake_chat(messages: list[dict[str, str]]) -> str:
 @pytest.fixture(autouse=True)
 def offline_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.ingest
+    import app.memory
     import app.rag
 
     monkeypatch.setattr(app.ingest, "embed", fake_embed)
     monkeypatch.setattr(app.rag, "embed", fake_embed)
     monkeypatch.setattr(app.rag, "chat", fake_chat)
+    monkeypatch.setattr(app.memory, "chat", fake_chat)

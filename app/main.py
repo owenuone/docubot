@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 from fastapi import FastAPI
 from loguru import logger
 
-from app import api
+from app import api, web
 from app.bot import router as bot_router
 from app.config import settings
 from app.db import init_db
@@ -45,3 +45,5 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="DocuBot", version="0.1.0", lifespan=lifespan)
 app.include_router(api.public)
 app.include_router(api.router, prefix="/api")
+app.include_router(web.page)
+app.include_router(web.router)

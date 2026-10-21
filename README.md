@@ -98,6 +98,25 @@ curl "localhost:8000/api/logs?limit=10" -H "X-API-Key: $TOKEN"
 curl -X DELETE localhost:8000/api/documents/1 -H "X-API-Key: $TOKEN"
 ```
 
+## Web chat with long-term memory
+
+Open `http://localhost:8000/chat` for a browser chat UI built for long, ongoing conversations:
+
+- **Saved threads** — create, switch, resume and delete chats; everything is stored in SQLite, so nothing is lost on refresh or restart
+- **Long-term memory** — once a thread has more than `MEMORY_WINDOW` (20) unsummarized messages, everything except the latest `MEMORY_KEEP_RECENT` (8) is folded into a rolling summary by the LLM. Each request sends *summary + recent messages*, so context grows without hitting the model's window and old facts are condensed instead of dropped
+- **Inspectable** — the *Memory* panel shows exactly what the assistant remembers
+- **Demo-safe** — each browser gets an anonymous ID and only sees its own threads; per-IP rate limit and a per-thread message cap (`THREAD_MESSAGE_LIMIT`)
+
+This is free-form chat (no document retrieval) using the same `CHAT_*` model settings as the bot.
+
+| Endpoint (header `X-Visitor-Id: <uuid>`) | |
+|---|---|
+| `GET /chat/api/threads` | list your threads |
+| `POST /chat/api/threads` | create a thread |
+| `GET /chat/api/threads/{id}` | messages + current memory |
+| `POST /chat/api/threads/{id}/messages` | send `{"content": "..."}`, get the reply |
+| `DELETE /chat/api/threads/{id}` | delete a thread |
+
 ## Tests
 
 ```bash
@@ -108,7 +127,7 @@ Tests run fully offline — the LLM and embedding calls are replaced with determ
 
 ## Roadmap
 
-- Web chat widget for websites
+- Embeddable chat widget for websites
 - Postgres + pgvector for large document sets
 - Hybrid search (BM25 + vectors) and re-ranking
 - Admin dashboard

@@ -41,6 +41,30 @@ class QALog(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
+class Thread(Base):
+    __tablename__ = "threads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Anonymous browser ID from the web demo; each visitor only sees their own threads.
+    visitor_id: Mapped[str] = mapped_column(String(36), index=True)
+    title: Mapped[str] = mapped_column(String(120), default="New chat")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    # Messages with id <= this value are already folded into `summary`.
+    summarized_upto: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("threads.id"), index=True)
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
 engine = create_async_engine(settings.database_url)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

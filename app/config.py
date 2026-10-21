@@ -30,5 +30,11 @@ class Settings(BaseSettings):
     history_turns: int = 4
     rate_limit_per_minute: int = 10
 
+    # Web chat memory: once a thread has more than `memory_window` unsummarized messages,
+    # everything except the latest `memory_keep_recent` is folded into a rolling summary.
+    memory_window: int = 20
+    memory_keep_recent: int = 8
+    thread_message_limit: int = 200
+
 
 settings = Settings()
