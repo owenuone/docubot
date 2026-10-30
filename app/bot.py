@@ -1,5 +1,4 @@
 import html
-import re
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -15,7 +14,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.db import Document, SessionLocal
 from app.ingest import IngestError, ingest_file
-from app.rag import Source, answer
+from app.rag import Source, answer, cited_labels
 
 TELEGRAM_MESSAGE_LIMIT = 4096
 
@@ -38,8 +37,7 @@ def is_rate_limited(user_id: int) -> bool:
 
 
 def format_sources(reply: str, sources: list[Source]) -> str:
-    cited = {int(n) for n in re.findall(r"\[(\d+)\]", reply)}
-    labels = list(dict.fromkeys(s.label for i, s in enumerate(sources, 1) if i in cited))
+    labels = cited_labels(reply, sources)
     # <code> keeps Telegram from auto-linking names like "faq.md" as URLs.
     return f"\n\n📄 Sources: {', '.join(f'<code>{html.escape(l)}</code>' for l in labels)}" if labels else ""
 

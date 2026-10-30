@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, LargeBinary, String, Text, func
+from sqlalchemy import ForeignKey, LargeBinary, String, Text, func, inspect
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -62,6 +62,8 @@ class Message(Base):
     thread_id: Mapped[int] = mapped_column(ForeignKey("threads.id"), index=True)
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
+    # JSON list of source labels the assistant cited, e.g. ["faq.md", "manual.pdf p.3"].
+    sources: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
@@ -73,3 +75,9 @@ async def init_db() -> None:
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all never alters existing tables; add columns introduced after the first deploy.
+        columns = await conn.run_sync(
+            lambda c: {col["name"] for col in inspect(c).get_columns("messages")}
+        )
+        if "sources" not in columns:
+            await conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")

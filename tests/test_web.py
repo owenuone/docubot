@@ -80,7 +80,42 @@ def test_long_thread_is_folded_into_memory(client: TestClient, monkeypatch: pyte
     assert "User's name is Ada" in last_prompt[0]["content"]
     # Only the most recent messages are sent verbatim; the rest live in the summary.
     assert len(last_prompt) - 1 <= settings.memory_keep_recent
-    assert last_prompt[-1] == {"role": "user", "content": "Remember that"}
+    assert last_prompt[-1]["role"] == "user"
+    assert last_prompt[-1]["content"].endswith("Question: Remember that")
+
+
+def test_reply_cites_documents_but_stores_plain_question(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "rate_limit_per_minute", 100)
+    client.post(
+        "/api/documents",
+        headers={"X-API-Key": "test-token"},
+        files={"file": ("returns.md", b"Sale items can be returned within 14 days for store credit.")},
+    )
+
+    headers = visitor()
+    thread_id = client.post("/chat/api/threads", headers=headers).json()["id"]
+    resp = client.post(
+        f"/chat/api/threads/{thread_id}/messages", json={"content": "Can I return sale items?"}, headers=headers
+    )
+    # fake_chat answers "Fake answer [1]", so the top retrieved document is cited.
+    assert resp.json()["message"]["sources"] == ["returns.md"]
+
+    messages = client.get(f"/chat/api/threads/{thread_id}", headers=headers).json()["messages"]
+    assert messages[0] == {**messages[0], "content": "Can I return sale items?", "sources": []}
+    assert messages[1]["sources"] == ["returns.md"]
+
+
+def test_uncited_reply_has_no_sources(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def no_citation(messages: list[dict[str, str]]) -> str:
+        return "Sorry, I couldn't find that in the documents."
+
+    monkeypatch.setattr(memory, "chat", no_citation)
+    headers = visitor()
+    thread_id = client.post("/chat/api/threads", headers=headers).json()["id"]
+    resp = client.post(f"/chat/api/threads/{thread_id}/messages", json={"content": "Weather?"}, headers=headers)
+    assert resp.json()["message"]["sources"] == []
 
 
 def test_failed_llm_call_leaves_thread_unchanged(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

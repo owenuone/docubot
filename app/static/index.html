@@ -66,6 +66,11 @@
   .msg.error div { color: var(--danger); background: none; border: 1px dashed var(--danger); }
   .empty { max-width: 520px; margin: 12vh auto 0; text-align: center; color: var(--muted); }
   .empty h2 { color: var(--text); font-size: 20px; }
+  .examples { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+  .examples button { border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 10px; padding: 9px 12px; }
+  .examples button:hover { border-color: var(--accent); }
+  .sources { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted); }
+  .sources code { background: var(--user); color: var(--text); border-radius: 6px; padding: 1px 7px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 
   form { border-top: 1px solid var(--border); background: var(--panel); padding: 12px 20px; }
   .row { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; }
@@ -86,7 +91,7 @@
 </head>
 <body>
 <aside id="sidebar">
-  <div class="brand">DocuBot Chat<small>Saved threads · long-term memory</small></div>
+  <div class="brand">DocuBot Chat<small>Answers from your documents · long-term memory</small></div>
   <button class="new" id="newChat">+ New chat</button>
   <ul id="threads"></ul>
 </aside>
@@ -105,7 +110,7 @@
   <div id="log"></div>
   <form id="composer">
     <div class="row">
-      <textarea id="input" rows="1" placeholder="Message… (Enter to send, Shift+Enter for a new line)" maxlength="4000"></textarea>
+      <textarea id="input" rows="1" placeholder="Ask about the documents… (Enter to send, Shift+Enter for a new line)" maxlength="4000"></textarea>
       <button id="send">Send</button>
     </div>
   </form>
@@ -134,22 +139,47 @@ async function api(path, options = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-function bubble(role, text, extra = "") {
+function bubble(role, text, extra = "", sources = []) {
   const row = document.createElement("div");
   row.className = `msg ${role} ${extra}`;
   const div = document.createElement("div");
   div.textContent = text;
+  if (sources.length) {
+    const list = document.createElement("span");
+    list.className = "sources";
+    list.append("📄 Sources:");
+    for (const s of sources) {
+      const code = document.createElement("code");
+      code.textContent = s;
+      list.appendChild(code);
+    }
+    div.appendChild(list);
+  }
   row.appendChild(div);
   $("log").appendChild(row);
   $("log").scrollTop = $("log").scrollHeight;
   return row;
 }
 
+const EXAMPLES = [
+  "How long does shipping to Europe take?",
+  "Can I return sale items?",
+  "Is my tent covered if a pole breaks?",
+];
+
 function showEmpty() {
-  $("log").innerHTML = `<div class="empty"><h2>Conversations that don't forget</h2>
-    <p>Every thread is saved, so you can close the tab and pick up tomorrow.
-    When a thread gets long, older messages are condensed into a long-term memory
-    instead of being dropped. Open <b>Memory</b> to see what's remembered.</p></div>`;
+  $("log").innerHTML = `<div class="empty"><h2>Ask questions about your documents</h2>
+    <p>This demo is loaded with the FAQ of a fictional outdoor store. Every answer cites the
+    document it came from. Threads are saved, and when one gets long, older messages are condensed
+    into a long-term memory instead of being dropped. Open <b>Memory</b> to see what's remembered.</p>
+    <div class="examples"></div></div>`;
+  const examples = $("log").querySelector(".examples");
+  for (const q of EXAMPLES) {
+    const b = document.createElement("button");
+    b.textContent = q;
+    b.onclick = () => { $("input").value = q; $("composer").requestSubmit(); };
+    examples.appendChild(b);
+  }
 }
 
 function renderMemory(summary, summarizedUpto, messages) {
@@ -191,7 +221,7 @@ async function openThread(id) {
   $("title").textContent = current.title;
   $("log").innerHTML = "";
   if (!current.messages.length) showEmpty();
-  for (const m of current.messages) bubble(m.role, m.content, m.id <= current.summarized_upto ? "folded" : "");
+  for (const m of current.messages) bubble(m.role, m.content, m.id <= current.summarized_upto ? "folded" : "", m.sources);
   renderMemory(current.summary, current.summarized_upto, current.messages);
   $("sidebar").classList.remove("open");
   loadThreads();

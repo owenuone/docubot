@@ -100,14 +100,15 @@ curl -X DELETE localhost:8000/api/documents/1 -H "X-API-Key: $TOKEN"
 
 ## Web chat with long-term memory
 
-Open `http://localhost:8000/chat` for a browser chat UI built for long, ongoing conversations:
+Open `http://localhost:8000/chat` for a browser chat UI that answers from your documents and is built for long, ongoing conversations:
 
+- **Document Q&A with citations** — every message runs the same retrieval as the bot; answers cite blocks inline and each reply lists the documents it actually used
 - **Saved threads** — create, switch, resume and delete chats; everything is stored in SQLite, so nothing is lost on refresh or restart
 - **Long-term memory** — once a thread has more than `MEMORY_WINDOW` (20) unsummarized messages, everything except the latest `MEMORY_KEEP_RECENT` (8) is folded into a rolling summary by the LLM. Each request sends *summary + recent messages*, so context grows without hitting the model's window and old facts are condensed instead of dropped
 - **Inspectable** — the *Memory* panel shows exactly what the assistant remembers
 - **Demo-safe** — each browser gets an anonymous ID and only sees its own threads; per-IP rate limit and a per-thread message cap (`THREAD_MESSAGE_LIMIT`)
 
-This is free-form chat (no document retrieval) using the same `CHAT_*` model settings as the bot.
+It uses the same documents and `CHAT_*` / `EMBED_*` settings as the bot. Things the user mentioned earlier (name, plans) come from the conversation and memory, so they're answered without citations.
 
 | Endpoint (header `X-Visitor-Id: <uuid>`) | |
 |---|---|

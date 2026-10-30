@@ -1,13 +1,19 @@
+import json
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import Message, Thread
 from app.llm import chat
+from app.rag import Source, build_context, cited_labels, retrieve
 
-SYSTEM_PROMPT = """You are a helpful assistant for deep, ongoing work.
-- Reply in the same language as the user, in plain text (simple lists are fine, no Markdown headings or tables).
-- Use the long-term memory below as established context from earlier in this conversation."""
+SYSTEM_PROMPT = """You are a document assistant for long, ongoing conversations.
+- Answer questions about products, policies and facts using ONLY the numbered context blocks in the latest message, and cite the blocks you used inline, like [1] or [2].
+- If the context does not contain the answer, politely say you couldn't find that in the documents, without citing anything or mentioning "context" or "blocks". Never make things up.
+- What the user told you earlier (their name, plans, preferences) is known from the conversation and the long-term memory below; use it freely, without citations.
+- For greetings or small talk, reply briefly and offer to help; don't volunteer document content nobody asked for.
+- Reply in the same language as the user, in plain text (simple lists are fine, no Markdown headings or tables)."""
 
 SUMMARY_PROMPT = """You maintain the long-term memory of a conversation.
 Merge the existing memory with the new messages into one updated memory.
@@ -47,15 +53,18 @@ async def compact(session: AsyncSession, thread: Thread) -> None:
     thread.summarized_upto = old[-1].id
 
 
-def build_prompt(thread: Thread, recent: list[Message]) -> list[dict[str, str]]:
+def build_prompt(thread: Thread, recent: list[Message], sources: list[Source]) -> list[dict[str, str]]:
     system = SYSTEM_PROMPT
     if thread.summary:
         system += f"\n\nLong-term memory:\n{thread.summary}"
-    return [{"role": "system", "content": system}, *({"role": m.role, "content": m.content} for m in recent)]
+    messages = [{"role": "system", "content": system}, *({"role": m.role, "content": m.content} for m in recent)]
+    # Retrieved context goes only into the prompt; the stored message stays the user's own words.
+    messages[-1]["content"] = f"Context:\n{build_context(sources)}\n\nQuestion: {messages[-1]['content']}"
+    return messages
 
 
 async def reply(session: AsyncSession, thread: Thread, text: str) -> Message:
-    """Store the user's message, answer it with summary + recent context, and commit both.
+    """Store the user's message, answer it from the documents with summary + recent context, and commit both.
 
     Nothing is committed if an LLM call fails, so a failed turn leaves the thread unchanged.
     """
@@ -63,8 +72,14 @@ async def reply(session: AsyncSession, thread: Thread, text: str) -> Message:
     await session.flush()
     await compact(session, thread)
 
-    answer = await chat(build_prompt(thread, await unsummarized(session, thread)))
-    message = Message(thread_id=thread.id, role="assistant", content=answer)
+    sources = await retrieve(text)
+    answer = await chat(build_prompt(thread, await unsummarized(session, thread), sources))
+    message = Message(
+        thread_id=thread.id,
+        role="assistant",
+        content=answer,
+        sources=json.dumps(cited_labels(answer, sources), ensure_ascii=False),
+    )
     session.add(message)
     if thread.title == "New chat":
         thread.title = text[:TITLE_LENGTH]

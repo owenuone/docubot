@@ -1,3 +1,4 @@
+import json
 import time
 from collections import defaultdict, deque
 from datetime import datetime
@@ -46,6 +47,7 @@ class MessageOut(BaseModel):
     id: int
     role: str
     content: str
+    sources: list[str]
     created_at: datetime
 
 
@@ -79,7 +81,11 @@ def thread_out(thread: Thread) -> ThreadOut:
 
 def message_out(message: Message) -> MessageOut:
     return MessageOut(
-        id=message.id, role=message.role, content=message.content, created_at=message.created_at
+        id=message.id,
+        role=message.role,
+        content=message.content,
+        sources=json.loads(message.sources),
+        created_at=message.created_at,
     )
 
 

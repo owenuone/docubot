@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -65,11 +66,21 @@ def build_context(sources: list[Source]) -> str:
     return "\n\n".join(f"[{i}] ({s.label})\n{s.text}" for i, s in enumerate(sources, 1))
 
 
+def cited_labels(reply: str, sources: list[Source]) -> list[str]:
+    """Labels of the sources the reply actually cites as [n], deduplicated in order."""
+    cited = {int(n) for n in re.findall(r"\[(\d+)\]", reply)}
+    return list(dict.fromkeys(s.label for i, s in enumerate(sources, 1) if i in cited))
+
+
+async def retrieve(question: str) -> list[Source]:
+    query = (await embed([question]))[0]
+    return index.search(query, settings.top_k)
+
+
 async def answer(
     question: str, history: list[dict[str, str]], user_id: int | None = None
 ) -> tuple[str, list[Source]]:
-    query = (await embed([question]))[0]
-    sources = index.search(query, settings.top_k)
+    sources = await retrieve(question)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *history,
