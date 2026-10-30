@@ -6,8 +6,7 @@ Upload a document → ask a question in plain language → get an accurate answe
 
 **🤖 Live demo: [@docubot_demo_bot](https://t.me/docubot_demo_bot)** — it's loaded with a sample FAQ for a fictional outdoor store. Try asking *"How long does shipping to Europe take?"*, *"Can I return sale items?"* or ask in your own language.
 
-<!-- TODO: replace with demo GIF -->
-<!-- ![demo](docs/demo.gif) -->
+![DocuBot web chat: cited answers from a store FAQ and long-term memory](docs/demo.gif)
 
 ## Features
 
